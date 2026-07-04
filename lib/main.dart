@@ -163,7 +163,7 @@ class _IntervalSetupScreenState extends State<IntervalSetupScreen> {
 }
 
 // ==========================================
-// FASE 2 y 3: TEMPORIZADOR Y AUDIO DUCKING
+// FASE 2 Y 3: TEMPORIZADOR Y AUDIO CORREGIDO
 // ==========================================
 class ActiveTimerScreen extends StatefulWidget {
   final int workSeconds;
@@ -188,7 +188,7 @@ class _ActiveTimerScreenState extends State<ActiveTimerScreen> {
   bool isWorkPhase = true;
   bool isPaused = false;
 
-  // DECLARACIÓN CORRECTA DEL REPRODUCTOR
+  // Creamos el reproductor de audio unico para la pantalla
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
@@ -196,15 +196,15 @@ class _ActiveTimerScreenState extends State<ActiveTimerScreen> {
     super.initState();
     remainingSeconds = widget.workSeconds;
     
-    // CONFIGURACIÓN SIN LA PALABRA "CONST" PARA EVITAR EL ERROR
+    // CONFIGURACIÓN EN EL CANAL DE MULTIMEDIA (Evita el canal de alertas/sistema)
     _audioPlayer.setAudioContext(
       AudioContext(
         android: AudioContextAndroid(
           isSpeakerphoneOn: true,
           stayAwake: true,
-          contentType: AndroidContentType.sonification,
-          usageType: AndroidUsageType.assistanceSonification,
-          audioFocus: AndroidAudioFocus.gainTransientMayDuck,
+          contentType: AndroidContentType.music,
+          usageType: AndroidUsageType.media,
+          audioFocus: AndroidAudioFocus.gainTransientMayDuck, // Ducking activado
         ),
       ),
     );
@@ -226,13 +226,19 @@ class _ActiveTimerScreenState extends State<ActiveTimerScreen> {
     });
   }
 
-  void _playBell() {
-    // Reproduce el archivo desde la carpeta assets
-    _audioPlayer.play(AssetSource('bell.mp3'));
+  // REPRODUCCIÓN FORZADA CON REINICIO DE FLUJO Y VOLUMEN AL MÁXIMO
+  void _playBell() async {
+    try {
+      await _audioPlayer.stop(); // Corta cualquier sonido anterior si se superpone
+      await _audioPlayer.setVolume(1.0); // Fuerza volumen interno al 100%
+      await _audioPlayer.play(AssetSource('bell.mp3'));
+    } catch (e) {
+      print("Error reproduciendo el audio: $e");
+    }
   }
 
   void _switchPhase() {
-    _playBell();
+    _playBell(); // Suena la campana en el segundo exacto del cambio
 
     if (isWorkPhase) {
       isWorkPhase = false;
@@ -259,8 +265,8 @@ class _ActiveTimerScreenState extends State<ActiveTimerScreen> {
         actions: [
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
+              Navigator.pop(context); // Cierra el modal
+              Navigator.pop(context); // Regresa a la pantalla de configuración
             },
             child: const Text('VOLVER AL INICIO'),
           ),
@@ -271,8 +277,8 @@ class _ActiveTimerScreenState extends State<ActiveTimerScreen> {
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _audioPlayer.dispose();
+    _timer?.cancel(); // Cancelamos el timer para evitar fugas de memoria
+    _audioPlayer.dispose(); // Liberamos el hardware de sonido del telefono
     super.dispose();
   }
 
